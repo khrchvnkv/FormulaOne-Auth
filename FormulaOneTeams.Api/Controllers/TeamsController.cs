@@ -1,5 +1,7 @@
+using FormulaOneTeams.Api.Data;
 using FormulaOneTeams.Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FormulaOneTeams.Api.Controllers
 {
@@ -7,48 +9,59 @@ namespace FormulaOneTeams.Api.Controllers
     [Route("api/[controller]")]
     public class TeamsController : ControllerBase
     {
-        private static List<Team> _teams = new();
-        
-        [HttpGet("get-all")]
-        public IActionResult Get()
+        private readonly AppDbContext _context;
+
+        public TeamsController(AppDbContext context)
         {
-            return Ok(_teams);
+            _context = context;
+        }
+
+        [HttpGet("get-all")]
+        public async Task<IActionResult> Get()
+        {
+            return Ok(await _context.Teams.ToListAsync());
         }
         
         [HttpGet("get/{id:int}")]
-        public IActionResult GetById(int id)
+        public async Task<IActionResult> GetById(int id)
         {
-            var team = _teams.FirstOrDefault(t => t.Id == id);
+            var team = await GetTeamByIdAsync(id);
             if (team is null) return BadRequest();
              
             return Ok(team);
         }
 
         [HttpPost("add")]
-        public IActionResult Add(Team team)
+        public async Task<IActionResult> Add(Team team)
         {
-            _teams.Add(team);
+            await _context.Teams.AddAsync(team);
+            await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(Get), team.Id, team);
         }
 
         [HttpPatch("update-country")]
-        public IActionResult UpdateCountry(int id, string country)
+        public async Task<IActionResult> UpdateCountry(int id, string country)
         {
-            var team = _teams.FirstOrDefault(t => t.Id == id);
+            var team = await GetTeamByIdAsync(id);
             if (team is null) return BadRequest();
             
             team.Country = country;
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
         [HttpDelete("delete")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var team = _teams.FirstOrDefault(t => t.Id == id);
-            if (team is null) return BadRequest();
+            var team = await GetTeamByIdAsync(id);
+            if (team is null) return BadRequest(); 
 
-            _teams.Remove(team);
+            _context.Teams.Remove(team);
+            await _context.SaveChangesAsync();
             return NoContent();
         }
+
+        private async Task<Team?> GetTeamByIdAsync(int id) => 
+            await _context.Teams.FirstOrDefaultAsync(t => t.Id == id);
     } 
 }
